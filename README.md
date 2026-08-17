@@ -1,1 +1,4 @@
-# The-Autonomous-Merchant-Growth-Agent
+## The Autonomous Merchant Growth Agent
+
+## Objective:
+
