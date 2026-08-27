@@ -1,0 +1,20 @@
+# Core Python libraries
+numpy
+pandas
+polars
+matplotlib
+
+# Machine Learning
+scikit-learn
+xgboost
+
+# LangChain Ecosystem
+langchain
+langgraph
+langsmith
+
+# FastMCP (Python client)
+fastmcp
+
+# Google Gemini (Python SDK)
+google-generativeai
