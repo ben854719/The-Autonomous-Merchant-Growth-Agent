@@ -118,7 +118,7 @@ The dashboard combines a high‑performance data stack with an agentic reasoning
 
 ## Each Node:
 
--Each node in the system represents a distinct step in the agent’s Observe → Diagnose → Decide → Act workflow, executed through LangGraph’s structured state machine. Nodes   encapsulate isolated logic—data collection, KPI computation, anomaly checks, causal reasoning, LLM diagnostics, or action generation—ensuring deterministic transitions and  clear traceability. When a node completes, it passes its output to the next stage in the graph, enabling controlled branching, retries, and fallback behavior. This modular  design makes the agent reliable, debuggable, and easy to extend with new tools, models, or decision policies.
+- Each node in the system represents a distinct step in the agent’s Observe → Diagnose → Decide → Act workflow, executed through LangGraph’s structured state machine. Nodes   encapsulate isolated logic—data collection, KPI computation, anomaly checks, causal reasoning, LLM diagnostics, or action generation—ensuring deterministic transitions      and  clear traceability. When a node completes, it passes its output to the next stage in the graph, enabling controlled branching, retries, and fallback behavior. This modular  design makes the agent reliable, debuggable, and easy to extend with new tools, models, or decision policies.
 
 ## Fallback Logic:
 
