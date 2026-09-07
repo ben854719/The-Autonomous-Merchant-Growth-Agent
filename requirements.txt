@@ -18,3 +18,7 @@ fastmcp
 
 # Google Gemini (Python SDK)
 google-generativeai
+
+# FastAPI server
+fastapi
+uvicorn
