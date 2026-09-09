@@ -358,7 +358,7 @@ def home():
             <ul>
                 <li><a href="/cleaned-table">Cleaned CSV Table</a></li>
                 <li><a href="/dashboard">Matplotlib Dashboard</a></li>
-                <li><a href="/agent-ui">Gemini 3.4 Flash Multi-Agent</a></li>
+                <li><a href="/agent-ui">Gemini gemini 3.5 flash</a></li>
                 <li><a href="/debug">Debug CSV</a></li>
                 <li><a href="/debug-dashboard">Debug Dashboard</a></li>
                 <li><a href="/health">Health Check</a></li>
