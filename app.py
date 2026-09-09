@@ -51,7 +51,7 @@ def search_orders(query: str) -> list:
 # 4. ERROR‑PROOF CSV LOADING (PANDAS ONLY)
 # ============================================================
 def load_clean_data() -> pd.DataFrame:
-    csv_path = "order_date_36.csv"
+    csv_path = "order_id_order_date_36.csv"
 
     if not os.path.exists(csv_path):
         raise FileNotFoundError(
