@@ -481,7 +481,7 @@ async def agent_ui_post(request: Request):
     return f"""
     <html>
         <body>
-            <h2>Gemini 3.4 Flash Multi-Agent</h2>
+            <h2>Gemini 3.5 Flash Multi-Agent</h2>
             <form method="post" action="/agent-ui">
                 <textarea name="prompt" rows="4" style="width:100%;">{prompt}</textarea>
                 <button type="submit">Run Multi-Agent Workflow</button>
