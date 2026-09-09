@@ -54,7 +54,7 @@ The dashboard combines a high‑performance data stack with an agentic reasoning
 
 - Fastmcp
 
-- Gemini 3 flash
+- Gemini 3.5 flash
 
 - Render
 
