@@ -170,7 +170,7 @@ message = HumanMessage(
     ]
 )
 
-print("--- Analyzing Dashboard with Gemini 3 Flash Preview ---")
+print("--- Analyzing Dashboard with gemini-3.5-flash ---")
 response = llm.invoke([message])
 display(Markdown("### Automated Store Health Analysis"))
 display(Markdown(response.content if isinstance(response.content, str) else response.content[0]['text']))
