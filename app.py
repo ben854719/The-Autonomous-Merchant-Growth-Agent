@@ -28,11 +28,15 @@ llm = ChatGoogleGenerativeAI(
 ls_client = Client()
 
 def trace_run(input_text: str, output_text: dict):
-    ls_client.create_run(
-        name="merchant-multi-agent-run",
-        inputs={"input": input_text},
-        outputs=output_text,
-    )
+    try:
+        ls_client.create_run(
+            name="merchant-multi-agent-run",
+            inputs={"input": input_text},
+            outputs=output_text,
+        )
+    except Exception:
+        # tracing should never break the app
+        pass
 
 # ============================================================
 # 3. MCP TOOLS
@@ -105,9 +109,34 @@ def run_risk_scoring(df: pd.DataFrame) -> dict:
     return {"top_risk": top_risk}
 
 # ============================================================
-# 6. MATPLOTLIB DASHBOARD GENERATOR
+# 6. SAFE MATPLOTLIB DASHBOARD GENERATOR
 # ============================================================
 def generate_dashboard(df: pd.DataFrame):
+    required_cols = ["order_date", "total", "quantity", "channel", "customer_name"]
+    missing = [c for c in required_cols if c not in df.columns]
+
+    if missing:
+        fig, ax = plt.subplots(figsize=(10, 4))
+        ax.text(0.5, 0.5, f"Missing columns: {missing}",
+                ha="center", va="center", fontsize=14)
+        ax.axis("off")
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png")
+        buf.seek(0)
+        plt.close(fig)
+        return buf
+
+    if df.empty:
+        fig, ax = plt.subplots(figsize=(10, 4))
+        ax.text(0.5, 0.5, "CSV loaded but contains no rows",
+                ha="center", va="center", fontsize=14)
+        ax.axis("off")
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png")
+        buf.seek(0)
+        plt.close(fig)
+        return buf
+
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
     fig.suptitle('Merchant Behavior & Store Health Dashboard', fontsize=20)
 
@@ -140,7 +169,7 @@ def generate_dashboard(df: pd.DataFrame):
     return buf
 
 # ============================================================
-# 7. MULTI‑AGENT WORKFLOW
+# 7. MULTI‑AGENT WORKFLOW (SAFE)
 # ============================================================
 class AgentState(TypedDict):
     input: str
@@ -171,26 +200,53 @@ def dashboard_step(state: AgentState):
     return {"dashboard_image_b64": image_b64}
 
 def vision_analysis_step(state: AgentState):
+    try:
+        forecast_sample = (
+            state.get("forecast", {})
+            .get("daily_sales", pd.DataFrame())
+            .head()
+            .to_string()
+        )
+    except Exception:
+        forecast_sample = "No forecast data"
+
+    try:
+        risk_sample = (
+            state.get("risk", {})
+            .get("top_risk", pd.DataFrame())
+            .head()
+            .to_string()
+        )
+    except Exception:
+        risk_sample = "No risk data"
+
     prompt = [
         {
             "type": "text",
             "text": (
                 "You are an AI analyzing a merchant health dashboard.\n"
-                f"Forecast sample: {state['forecast']['daily_sales'].head().to_string()}\n"
-                f"Top risk sample: {state['risk']['top_risk'].head().to_string()}\n"
+                f"Forecast sample:\n{forecast_sample}\n\n"
+                f"Top risk sample:\n{risk_sample}\n"
             )
         },
         {
             "type": "image_url",
-            "image_url": {"url": f"data:image/png;base64,{state['dashboard_image_b64']}"}
+            "image_url": {
+                "url": f"data:image/png;base64,{state.get('dashboard_image_b64', '')}"
+            }
         }
     ]
-    result = llm.invoke(prompt)
-    analysis = result.content if isinstance(result.content, str) else str(result.content)
+
+    try:
+        result = llm.invoke(prompt)
+        analysis = result.content if isinstance(result.content, str) else str(result.content)
+    except Exception as e:
+        analysis = f"Vision analysis failed: {e}"
+
     return {"analysis": analysis}
 
 def decision_step(state: AgentState):
-    text = state["analysis"].lower()
+    text = state.get("analysis", "").lower()
     if any(word in text for word in ["anomaly", "risk", "outlier"]):
         decision = "Escalate to sales and risk team; review high-risk and anomalous orders."
     else:
@@ -199,7 +255,7 @@ def decision_step(state: AgentState):
 
 def action_step(state: AgentState):
     report = (
-        f"Decision: {state['decision']}\n"
+        f"Decision: {state.get('decision', 'No decision')}\n"
         "Suggested actions:\n"
         "- Notify account managers for top-risk customers.\n"
         "- Review anomalous orders for potential fraud or data issues.\n"
@@ -240,7 +296,7 @@ def health():
     return {"status": "ok", "message": "FastAPI is running"}
 
 # ============================================================
-# 10. DEBUG ENDPOINT
+# 10. DEBUG ENDPOINTS
 # ============================================================
 @app.get("/debug")
 def debug():
@@ -264,6 +320,17 @@ def debug():
 
     return info
 
+@app.get("/debug-dashboard")
+def debug_dashboard():
+    try:
+        df = load_clean_data()
+        return {
+            "row_count": len(df),
+            "columns": list(df.columns),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 # ============================================================
 # 11. HOMEPAGE
 # ============================================================
@@ -278,6 +345,7 @@ def home():
                 <li><a href="/dashboard">Matplotlib Dashboard</a></li>
                 <li><a href="/agent-ui">Gemini 3.4 Flash Multi-Agent</a></li>
                 <li><a href="/debug">Debug CSV</a></li>
+                <li><a href="/debug-dashboard">Debug Dashboard</a></li>
                 <li><a href="/health">Health Check</a></li>
             </ul>
         </body>
@@ -285,11 +353,14 @@ def home():
     """
 
 # ============================================================
-# 12. CLEANED TABLE ENDPOINT (PANDAS ONLY)
+# 12. CLEANED TABLE ENDPOINT (PANDAS ONLY, SAFE)
 # ============================================================
 @app.get("/cleaned-table")
 def cleaned_table():
-    df = pd.read_csv("order_id_order_date_36.csv")
+    try:
+        df = pd.read_csv("order_id_order_date_36.csv")
+    except Exception as e:
+        return HTMLResponse(f"<h2>Error reading CSV</h2><pre>{e}</pre>", status_code=500)
 
     text_cols = ["customer_name", "email", "product_title",
                  "category", "channel", "status"]
@@ -297,42 +368,60 @@ def cleaned_table():
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip().str.lower()
 
-    df["order_date"] = pd.to_datetime(df["order_date"], errors="coerce")
+    df["order_date"] = pd.to_datetime(df.get("order_date"), errors="coerce")
     df = df.dropna(subset=["order_date"])
 
     html_table = df.head(50).to_html(index=False)
     return HTMLResponse(f"<h2>Cleaned CSV Data</h2>{html_table}")
 
 # ============================================================
-# 13. MATPLOTLIB DASHBOARD ENDPOINT
+# 13. MATPLOTLIB DASHBOARD ENDPOINT (SAFE)
 # ============================================================
 @app.get("/dashboard")
 def dashboard_plot():
-    df = load_clean_data()
-    buf = generate_dashboard(df)
-    return StreamingResponse(buf, media_type="image/png")
+    try:
+        df = load_clean_data()
+        buf = generate_dashboard(df)
+        return StreamingResponse(buf, media_type="image/png")
+    except Exception as e:
+        fig, ax = plt.subplots(figsize=(10, 4))
+        ax.text(0.5, 0.5, f"Dashboard error: {e}",
+                ha="center", va="center", fontsize=14)
+        ax.axis("off")
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png")
+        buf.seek(0)
+        plt.close(fig)
+        return StreamingResponse(buf, media_type="image/png")
 
 # ============================================================
-# 14. MULTI-AGENT API ENDPOINT
+# 14. MULTI-AGENT API ENDPOINT (SAFE)
 # ============================================================
 @app.post("/agent")
 def agent_api(prompt: str = Body(..., embed=True)):
-    result = agent_app.invoke({
-        "input": prompt,
-        "forecast": {},
-        "anomalies": {},
-        "risk": {},
-        "dashboard_image_b64": "",
-        "analysis": "",
-        "decision": "",
-        "action_report": ""
-    })
-    trace_run(prompt, result)
-    return {
-        "analysis": result["analysis"],
-        "decision": result["decision"],
-        "action_report": result["action_report"],
-    }
+    try:
+        result = agent_app.invoke({
+            "input": prompt,
+            "forecast": {},
+            "anomalies": {},
+            "risk": {},
+            "dashboard_image_b64": "",
+            "analysis": "",
+            "decision": "",
+            "action_report": ""
+        })
+        trace_run(prompt, result)
+        return {
+            "analysis": result.get("analysis", ""),
+            "decision": result.get("decision", ""),
+            "action_report": result.get("action_report", ""),
+        }
+    except Exception as e:
+        return {
+            "analysis": f"Agent pipeline failed: {e}",
+            "decision": "Error",
+            "action_report": "Agent encountered an error; please check logs and CSV.",
+        }
 
 # ============================================================
 # 15. AGENT CHAT UI
@@ -355,17 +444,24 @@ def agent_ui():
 async def agent_ui_post(request: Request):
     form = await request.form()
     prompt = form.get("prompt", "")
-    result = agent_app.invoke({
-        "input": prompt,
-        "forecast": {},
-        "anomalies": {},
-        "risk": {},
-        "dashboard_image_b64": "",
-        "analysis": "",
-        "decision": "",
-        "action_report": ""
-    })
-    trace_run(prompt, result)
+    try:
+        result = agent_app.invoke({
+            "input": prompt,
+            "forecast": {},
+            "anomalies": {},
+            "risk": {},
+            "dashboard_image_b64": "",
+            "analysis": "",
+            "decision": "",
+            "action_report": ""
+        })
+        trace_run(prompt, result)
+    except Exception as e:
+        result = {
+            "analysis": f"Agent pipeline failed: {e}",
+            "decision": "Error",
+            "action_report": "Agent encountered an error; please check logs and CSV.",
+        }
 
     return f"""
     <html>
@@ -376,12 +472,11 @@ async def agent_ui_post(request: Request):
                 <button type="submit">Run Multi-Agent Workflow</button>
             </form>
             <h3>Analysis:</h3>
-            <pre>{result['analysis']}</pre>
+            <pre>{result.get('analysis', '')}</pre>
             <h3>Decision:</h3>
-            <pre>{result['decision']}</pre>
+            <pre>{result.get('decision', '')}</pre>
             <h3>Action Report:</h3>
-            <pre>{result['action_report']}</pre>
+            <pre>{result.get('action_report', '')}</pre>
         </body>
     </html>
     """
-
