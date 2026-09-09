@@ -3,10 +3,10 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 import os
 import polars as pl
 import pandas as pd
-import matplotlib.pyplot as plt
+import matplotlib as plt
+matplotlib.use("Agg")
 import base64
 import io
-
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, END
 from typing import TypedDict
