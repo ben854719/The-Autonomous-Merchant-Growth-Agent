@@ -51,44 +51,49 @@ def search_orders(query: str) -> list:
 # 4. ERROR‑PROOF CSV LOADING (PANDAS ONLY)
 # ============================================================
 def load_clean_data() -> pd.DataFrame:
-    csv_path = "order_id_order_date_36.csv"
+    csv_path = CSV_FILENAME
 
-    if not os.path.exists(csv_path):
-        raise FileNotFoundError(
-            f"CSV file not found: {csv_path}. "
-            "Make sure it is in the repo root next to app.py."
-        )
+    df = pd.read_csv(csv_path)
 
-    try:
-        df = pd.read_csv(csv_path)
-    except Exception as e:
-        raise ValueError(f"Failed to read CSV: {e}")
-
-    required_cols = ["order_date", "total"]
-    for col in required_cols:
-        if col not in df.columns:
-            raise ValueError(f"Missing required column: {col}")
-
-    df = df.drop_duplicates()
-
-    text_cols = ["customer_name", "email", "product_title",
-                 "category", "channel", "status"]
-    for col in text_cols:
-        if col in df.columns:
-            df[col] = df[col].astype(str).str.strip().str.lower()
-
-    df["order_date"] = pd.to_datetime(df["order_date"], errors="coerce")
-    df = df.dropna(subset=["order_date"])
-
-    df["total"] = pd.to_numeric(df["total"], errors="coerce")
-    df = df.dropna(subset=["total"])
-
-    df["quantity"] = (
-        pd.to_numeric(df.get("quantity", 1), errors="coerce").fillna(1)
+    # --- Fix date parsing ---
+    # Try multiple formats instead of dropping everything
+    df["order_date"] = pd.to_datetime(
+        df["order_date"],
+        errors="coerce",
+        format=None  # allow flexible parsing
     )
 
-    return df
+    # If still NaT, try common formats manually
+    if df["order_date"].isna().all():
+        df["order_date"] = pd.to_datetime(
+            df["order_date"],
+            errors="coerce",
+            infer_datetime_format=True
+        )
 
+    # --- Fix numeric parsing ---
+    # Remove currency symbols and commas
+    df["total"] = (
+        df["total"]
+        .astype(str)
+        .str.replace("$", "", regex=False)
+        .str.replace(",", "", regex=False)
+    )
+
+    df["total"] = pd.to_numeric(df["total"], errors="coerce")
+
+    # --- Do NOT drop rows aggressively ---
+    # Only drop rows where BOTH date and total are missing
+    df = df.dropna(subset=["order_date", "total"], how="all")
+
+    # Fill missing totals with 0 instead of dropping
+    df["total"] = df["total"].fillna(0)
+
+    # Fill missing dates with today's date (or leave NaT)
+    df["order_date"] = df["order_date"].fillna(pd.Timestamp.today())
+
+    return df
+    
 # ============================================================
 # 5. FORECAST / ANOMALY / RISK
 # ============================================================
