@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from fastapi import FastAPI, Body, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 import os
-import polars as pl
 import pandas as pd
 import base64
 import io
@@ -45,31 +44,27 @@ def search_orders(query: str) -> list:
     return [f"Search result for: {query}"]
 
 # ============================================================
-# 4. ERROR‑PROOF CSV LOADING
+# 4. ERROR‑PROOF CSV LOADING (PANDAS ONLY)
 # ============================================================
 def load_clean_data() -> pd.DataFrame:
     csv_path = "order_id_order_date_36.csv"
 
-    # --- Safety: Check if file exists ---
     if not os.path.exists(csv_path):
         raise FileNotFoundError(
             f"CSV file not found: {csv_path}. "
             "Make sure it is in the repo root next to app.py."
         )
 
-    # --- Safety: Try reading CSV ---
     try:
         df = pd.read_csv(csv_path)
     except Exception as e:
         raise ValueError(f"Failed to read CSV: {e}")
 
-    # --- Safety: Ensure required columns exist ---
     required_cols = ["order_date", "total"]
     for col in required_cols:
         if col not in df.columns:
             raise ValueError(f"Missing required column: {col}")
 
-    # --- Cleaning ---
     df = df.drop_duplicates()
 
     text_cols = ["customer_name", "email", "product_title",
@@ -279,7 +274,7 @@ def home():
         <body>
             <h1>Autonomous Merchant Growth Multi-Agent System</h1>
             <ul>
-                <li><a href="/cleaned-table">Cleaned Polars Table</a></li>
+                <li><a href="/cleaned-table">Cleaned CSV Table</a></li>
                 <li><a href="/dashboard">Matplotlib Dashboard</a></li>
                 <li><a href="/agent-ui">Gemini 3.4 Flash Multi-Agent</a></li>
                 <li><a href="/debug">Debug CSV</a></li>
@@ -290,27 +285,23 @@ def home():
     """
 
 # ============================================================
-# 12. CLEANED POLARS TABLE ENDPOINT
+# 12. CLEANED TABLE ENDPOINT (PANDAS ONLY)
 # ============================================================
 @app.get("/cleaned-table")
 def cleaned_table():
-    df = pl.read_csv("order_id_order_date_36.csv")
+    df = pd.read_csv("order_id_order_date_36.csv")
 
-    cleaned_df = df.with_columns([
-        pl.col("customer_name").str.strip().str.to_lowercase(),
-        pl.col("email").str.strip().str.to_lowercase(),
-        pl.col("product_title").str.strip().str.to_lowercase(),
-        pl.col("category").str.strip().str.to_lowercase(),
-        pl.col("channel").str.strip().str.to_lowercase(),
-        pl.col("status").str.strip().str.to_lowercase()
-    ]).unique()
+    text_cols = ["customer_name", "email", "product_title",
+                 "category", "channel", "status"]
+    for col in text_cols:
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.strip().str.lower()
 
-    cleaned_df = cleaned_df.with_columns([
-        pl.col("order_date").str.to_datetime(strict=False).alias("order_date")
-    ]).drop_nulls(["order_date"])
+    df["order_date"] = pd.to_datetime(df["order_date"], errors="coerce")
+    df = df.dropna(subset=["order_date"])
 
-    html_table = cleaned_df.head(50).to_pandas().to_html(index=False)
-    return HTMLResponse(f"<h2>Cleaned Polars Data</h2>{html_table}")
+    html_table = df.head(50).to_html(index=False)
+    return HTMLResponse(f"<h2>Cleaned CSV Data</h2>{html_table}")
 
 # ============================================================
 # 13. MATPLOTLIB DASHBOARD ENDPOINT
@@ -393,3 +384,4 @@ async def agent_ui_post(request: Request):
         </body>
     </html>
     """
+
