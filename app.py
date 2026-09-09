@@ -15,10 +15,10 @@ from langsmith import Client
 from mcp.server import MCPServer
 
 # ============================================================
-# 1. GEMINI 3.4 FLASH PREVIEW MODEL
+# 1. GEMINI 3.5 FLASH MODEL
 # ============================================================
 llm = ChatGoogleGenerativeAI(
-    model="gemini-3.4-flash-preview",
+    model=" gemini 3.5 flash",
     api_key=os.environ["GEMINI_API_KEY"]
 )
 
