@@ -146,7 +146,7 @@ from google.colab import userdata
 # 1. Initialize Gemini model.
 api_key = userdata.get("Ben856")
 os.environ["GOOGLE_API_KEY"] = api_key
-llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview", api_key=api_key)
+llm = ChatGoogleGenerativeAI(model="gemini-3.5-flash", api_key=api_key)
 
 # 2. Capture the Dashboard Figure
 buf = io.BytesIO()
