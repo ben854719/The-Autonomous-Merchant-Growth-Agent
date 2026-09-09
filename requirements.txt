@@ -10,15 +10,16 @@ xgboost
 
 # LangChain Ecosystem
 langchain
+langchain-google-genai
 langgraph
 langsmith
 
 # FastMCP (Python client)
-fastmcp
-
-# Google Gemini (Python SDK)
-google-generativeai
+mcp
 
 # FastAPI server
 fastapi
 uvicorn
+
+# Required for FastAPI form uploads
+python-multipart
