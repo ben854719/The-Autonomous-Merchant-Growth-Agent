@@ -3,7 +3,6 @@ uvicorn
 
 numpy
 pandas
-polars
 matplotlib
 
 scikit-learn
