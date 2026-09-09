@@ -20,10 +20,6 @@ The dashboard combines a high‑performance data stack with an agentic reasoning
 
 - The application used for quick analytics, numerical operations, and lightweight data transformations.
 
-## Polars:
-
-- High‑performance engine for large merchant datasets, enabling fast joins, window functions, and time‑series KPI pipelines.
-
 ## Scikit‑Learn and XGBoost:
 
 - Provides forecasting, anomaly detection, uplift modeling, and risk scoring across merchant behavior and store health.
@@ -37,9 +33,7 @@ The dashboard combines a high‑performance data stack with an agentic reasoning
 - Python
 
 - Matplotlib
-
-- Polars
-
+  
 - NumPy
 
 - scikit learn / XGBoost
