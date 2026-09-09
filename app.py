@@ -18,7 +18,7 @@ from mcp.server import MCPServer
 # 1. GEMINI 3.5 FLASH MODEL
 # ============================================================
 llm = ChatGoogleGenerativeAI(
-    model=" gemini 3.5 flash",
+    model="gemini-3.5-flash",
     api_key=os.environ["GEMINI_API_KEY"]
 )
 
