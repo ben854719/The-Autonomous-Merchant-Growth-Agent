@@ -3,8 +3,9 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 import os
 import polars as pl
 import pandas as pd
-import matplotlib as plt
+import matplotlib
 matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import base64
 import io
 from langchain_google_genai import ChatGoogleGenerativeAI
