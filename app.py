@@ -294,6 +294,60 @@ agent_app = builder.compile()
 CSV_FILENAME = "order_id_order_date_36.csv"
 
 # ============================================================
+# 7. MULTI‑AGENT WORKFLOW (SAFE)
+# ============================================================
+def vision_analysis_step(state: AgentState):
+    try:
+        forecast_sample = (
+            state.get("forecast", {})
+            .get("daily_sales", pd.DataFrame())
+            .head()
+            .to_string()
+        )
+    except Exception:
+        forecast_sample = "No forecast data"
+
+    try:
+        risk_sample = (
+            state.get("risk", {})
+            .get("top_risk", pd.DataFrame())
+            .head()
+            .to_string()
+        )
+    except Exception:
+        risk_sample = "No risk data"
+
+    prompt = [
+        {
+            "role": "user",
+            "content": (
+                "You are an AI analyzing a merchant health dashboard.\n"
+                f"Forecast sample:\n{forecast_sample}\n\n"
+                f"Top risk sample:\n{risk_sample}\n"
+            )
+        },
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/png;base64,{state.get('dashboard_image_b64', '')}"
+                    }
+                }
+            ]
+        }
+    ]
+
+    try:
+        result = llm.invoke(prompt)
+        analysis = result.content if isinstance(result.content, str) else str(result.content)
+    except Exception as e:
+        analysis = f"Vision analysis failed: {e}"
+
+    return {"analysis": analysis}
+
+# ============================================================
 # 8. FASTAPI APP
 # ============================================================
 app = FastAPI()
