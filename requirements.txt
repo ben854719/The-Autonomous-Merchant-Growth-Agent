@@ -1,25 +1,18 @@
-# Core Python libraries
+fastapi
+uvicorn
+
 numpy
 pandas
 polars
 matplotlib
 
-# Machine Learning
 scikit-learn
 xgboost
 
-# LangChain Ecosystem
 langchain
 langchain-google-genai
 langgraph
 langsmith
 
-# FastMCP (Python client)
 mcp
-
-# FastAPI server
-fastapi
-uvicorn
-
-# Required for FastAPI form uploads
 python-multipart
