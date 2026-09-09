@@ -10,7 +10,7 @@ The application tracks key signals to generate KPIs, diagnose funnel, pricing, p
 
 ## Dashboard:
 
-The dashboard combines a high‑performance data stack with an agentic reasoning layer to deliver fast, explainable merchant insights. Python anchors the system, running KPI pipelines and the autonomous decision loop. Pandas and NumPy support quick analytics, while Polars handles large merchant datasets with efficient joins and time‑series processing. scikit‑learn and XGBoost power forecasting, anomaly detection, and uplift modeling. On top of this, LangChain, LangGraph, and LangSmith provide structured agent workflows, tool‑calling, and traceable LLM‑driven diagnostics, forming the intelligence layer that identifies issues and recommends high‑impact actions.
+The dashboard combines a high‑performance data stack with an agentic reasoning layer to deliver fast, explainable merchant insights. Python anchors the system, running KPI pipelines and the autonomous decision loop. Pandas and NumPy support quick analytics and efficient time‑series processing across merchant datasets. scikit‑learn and XGBoost power forecasting, anomaly detection, and uplift modeling. On top of this, LangChain, LangGraph, and LangSmith provide structured agent workflows, tool‑calling, and traceable LLM‑driven diagnostics, forming the intelligence layer that identifies issues and recommends high‑impact actions.
 
 ## Python:
 
