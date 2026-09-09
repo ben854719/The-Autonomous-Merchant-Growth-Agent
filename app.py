@@ -1,6 +1,7 @@
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
 from fastapi import FastAPI, Body, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 import os
@@ -44,10 +45,31 @@ def search_orders(query: str) -> list:
     return [f"Search result for: {query}"]
 
 # ============================================================
-# 4. DATA UTILITIES: CLEANING, FORECASTING, ANOMALY, RISK
+# 4. ERROR‑PROOF CSV LOADING
 # ============================================================
 def load_clean_data() -> pd.DataFrame:
-    df = pd.read_csv("order_id_order_date_36.csv")
+    csv_path = "order_id_order_date_36.csv"
+
+    # --- Safety: Check if file exists ---
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(
+            f"CSV file not found: {csv_path}. "
+            "Make sure it is in the repo root next to app.py."
+        )
+
+    # --- Safety: Try reading CSV ---
+    try:
+        df = pd.read_csv(csv_path)
+    except Exception as e:
+        raise ValueError(f"Failed to read CSV: {e}")
+
+    # --- Safety: Ensure required columns exist ---
+    required_cols = ["order_date", "total"]
+    for col in required_cols:
+        if col not in df.columns:
+            raise ValueError(f"Missing required column: {col}")
+
+    # --- Cleaning ---
     df = df.drop_duplicates()
 
     text_cols = ["customer_name", "email", "product_title",
@@ -62,19 +84,20 @@ def load_clean_data() -> pd.DataFrame:
     df["total"] = pd.to_numeric(df["total"], errors="coerce")
     df = df.dropna(subset=["total"])
 
-    if "quantity" in df.columns:
-        df["quantity"] = pd.to_numeric(df["quantity"], errors="coerce").fillna(1)
-    else:
-        df["quantity"] = 1
+    df["quantity"] = (
+        pd.to_numeric(df.get("quantity", 1), errors="coerce").fillna(1)
+    )
 
     return df
 
+# ============================================================
+# 5. FORECAST / ANOMALY / RISK
+# ============================================================
 def run_forecasting(df: pd.DataFrame) -> dict:
     daily_sales = df.groupby("order_date")["total"].sum().reset_index()
     return {"daily_sales": daily_sales}
 
 def run_anomaly_detection(df: pd.DataFrame) -> dict:
-    # Simple anomaly proxy: mark orders above 3x mean as anomalies
     mean_total = df["total"].mean()
     df["is_anomaly"] = df["total"] > 3 * mean_total
     anomalies = df[df["is_anomaly"]]
@@ -87,32 +110,28 @@ def run_risk_scoring(df: pd.DataFrame) -> dict:
     return {"top_risk": top_risk}
 
 # ============================================================
-# 5. MATPLOTLIB DASHBOARD GENERATOR
+# 6. MATPLOTLIB DASHBOARD GENERATOR
 # ============================================================
 def generate_dashboard(df: pd.DataFrame):
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
     fig.suptitle('Merchant Behavior & Store Health Dashboard', fontsize=20)
 
-    # 1. Daily Sales Trend
     daily_sales = df.groupby("order_date")["total"].sum().reset_index()
     axes[0, 0].plot(daily_sales["order_date"], daily_sales["total"], marker="o")
     axes[0, 0].set_title("Daily Total Sales")
     axes[0, 0].tick_params(axis='x', rotation=45)
 
-    # 2. Top Risk Customers
     mean_total = df["total"].mean()
     df["risk_score"] = df["total"] / mean_total
     top_risk = df.sort_values("risk_score", ascending=False).head(10)
     axes[0, 1].barh(top_risk["customer_name"], top_risk["risk_score"], color="red")
     axes[0, 1].set_title("Top 10 High-Risk Customers")
 
-    # 3. Total vs Quantity (Anomaly View)
     axes[1, 0].scatter(df["total"], df["quantity"], alpha=0.6)
     axes[1, 0].set_title("Total vs Quantity")
     axes[1, 0].set_xlabel("Total")
     axes[1, 0].set_ylabel("Quantity")
 
-    # 4. Sales by Channel
     channel_sales = df.groupby("channel")["total"].sum().reset_index()
     axes[1, 1].barh(channel_sales["channel"], channel_sales["total"], color="purple")
     axes[1, 1].set_title("Total Sales by Channel")
@@ -126,7 +145,7 @@ def generate_dashboard(df: pd.DataFrame):
     return buf
 
 # ============================================================
-# 6. MULTI-AGENT STATE + NODES (FORECAST, ANOMALY, RISK, DASHBOARD, VISION, DECISION, ACTION)
+# 7. MULTI‑AGENT WORKFLOW
 # ============================================================
 class AgentState(TypedDict):
     input: str
@@ -140,18 +159,15 @@ class AgentState(TypedDict):
 
 def forecast_step(state: AgentState):
     df = load_clean_data()
-    forecast = run_forecasting(df)
-    return {"forecast": forecast}
+    return {"forecast": run_forecasting(df)}
 
 def anomaly_step(state: AgentState):
     df = load_clean_data()
-    anomalies = run_anomaly_detection(df)
-    return {"anomalies": anomalies}
+    return {"anomalies": run_anomaly_detection(df)}
 
 def risk_step(state: AgentState):
     df = load_clean_data()
-    risk = run_risk_scoring(df)
-    return {"risk": risk}
+    return {"risk": run_risk_scoring(df)}
 
 def dashboard_step(state: AgentState):
     df = load_clean_data()
@@ -165,9 +181,8 @@ def vision_analysis_step(state: AgentState):
             "type": "text",
             "text": (
                 "You are an AI analyzing a merchant health dashboard.\n"
-                "Use the image plus the following context:\n"
-                f"Forecast sample: {state['forecast'].get('daily_sales').head().to_string() if state.get('forecast') else 'N/A'}\n"
-                f"Top risk sample: {state['risk'].get('top_risk').head().to_string() if state.get('risk') else 'N/A'}\n"
+                f"Forecast sample: {state['forecast']['daily_sales'].head().to_string()}\n"
+                f"Top risk sample: {state['risk']['top_risk'].head().to_string()}\n"
             )
         },
         {
@@ -181,7 +196,7 @@ def vision_analysis_step(state: AgentState):
 
 def decision_step(state: AgentState):
     text = state["analysis"].lower()
-    if "anomaly" in text or "risk" in text or "outlier" in text:
+    if any(word in text for word in ["anomaly", "risk", "outlier"]):
         decision = "Escalate to sales and risk team; review high-risk and anomalous orders."
     else:
         decision = "Monitor normally; no immediate intervention required."
@@ -218,12 +233,44 @@ builder.add_edge("act", END)
 agent_app = builder.compile()
 
 # ============================================================
-# 7. FASTAPI APP
+# 8. FASTAPI APP
 # ============================================================
 app = FastAPI()
 
 # ============================================================
-# 8. HOMEPAGE
+# 9. HEALTH ENDPOINT
+# ============================================================
+@app.get("/health")
+def health():
+    return {"status": "ok", "message": "FastAPI is running"}
+
+# ============================================================
+# 10. DEBUG ENDPOINT
+# ============================================================
+@app.get("/debug")
+def debug():
+    csv_path = "order_id_order_date_36.csv"
+    info = {
+        "csv_exists": os.path.exists(csv_path),
+        "csv_path": csv_path,
+    }
+
+    if not os.path.exists(csv_path):
+        info["error"] = "CSV file not found in repo root."
+        return info
+
+    try:
+        df = pd.read_csv(csv_path)
+        info["columns"] = list(df.columns)
+        info["head"] = df.head().to_dict(orient="records")
+        info["row_count"] = len(df)
+    except Exception as e:
+        info["error"] = f"Failed to read CSV: {e}"
+
+    return info
+
+# ============================================================
+# 11. HOMEPAGE
 # ============================================================
 @app.get("/", response_class=HTMLResponse)
 def home():
@@ -235,13 +282,15 @@ def home():
                 <li><a href="/cleaned-table">Cleaned Polars Table</a></li>
                 <li><a href="/dashboard">Matplotlib Dashboard</a></li>
                 <li><a href="/agent-ui">Gemini 3.4 Flash Multi-Agent</a></li>
+                <li><a href="/debug">Debug CSV</a></li>
+                <li><a href="/health">Health Check</a></li>
             </ul>
         </body>
     </html>
     """
 
 # ============================================================
-# 9. CLEANED POLARS TABLE ENDPOINT
+# 12. CLEANED POLARS TABLE ENDPOINT
 # ============================================================
 @app.get("/cleaned-table")
 def cleaned_table():
@@ -261,11 +310,10 @@ def cleaned_table():
     ]).drop_nulls(["order_date"])
 
     html_table = cleaned_df.head(50).to_pandas().to_html(index=False)
-
     return HTMLResponse(f"<h2>Cleaned Polars Data</h2>{html_table}")
 
 # ============================================================
-# 10. MATPLOTLIB DASHBOARD ENDPOINT
+# 13. MATPLOTLIB DASHBOARD ENDPOINT
 # ============================================================
 @app.get("/dashboard")
 def dashboard_plot():
@@ -274,7 +322,7 @@ def dashboard_plot():
     return StreamingResponse(buf, media_type="image/png")
 
 # ============================================================
-# 11. MULTI-AGENT API ENDPOINT
+# 14. MULTI-AGENT API ENDPOINT
 # ============================================================
 @app.post("/agent")
 def agent_api(prompt: str = Body(..., embed=True)):
@@ -296,7 +344,7 @@ def agent_api(prompt: str = Body(..., embed=True)):
     }
 
 # ============================================================
-# 12. AGENT CHAT UI
+# 15. AGENT CHAT UI
 # ============================================================
 @app.get("/agent-ui", response_class=HTMLResponse)
 def agent_ui():
