@@ -122,6 +122,10 @@ The dashboard combines a high‑performance data stack with an agentic reasoning
 
 - LangSmith provides the observability layer for the Autonomous Merchant Growth Agent, enabling deep visibility into every step of the agent’s reasoning and decision‑making   process. It captures detailed traces of tool calls, node transitions, LLM outputs, and fallback paths, allowing you to inspect how the agent moves through the Observe →     Diagnose → Decide → Act workflow. With built‑in evaluation tools, LangSmith helps measure model quality, compare prompt versions, validate diagnostic accuracy, and          identify failure modes across merchants. This ensures the system remains transparent, debuggable, and continuously improving as new KPIs, models, and workflows are added.
 
+## Function the Agent:
+
+- The word is Analyze to function the Agentic AI agent (Gemini 3.5 flash) for the website.
+
 ## How This Fits the Project:
 
 - All of these components work together to support the Autonomous Merchant Growth Agent’s end‑to‑end workflow. The agent relies on fast, reliable data processing (Pandas and NumPy) to compute KPIs and merchant signals, while scikit‑learn and XGBoost provide the forecasting, anomaly detection, and uplift modeling needed for accurate      diagnostics. LangChain, LangGraph, and LangSmith form the agentic reasoning layer, enabling structured workflows, intelligent tool‑calling, traceability, and evaluation     across the Observe → Diagnose → Decide → Act loop. Fallback logic ensures the agent remains stable even when data is missing or external services fail. Render deployment    provides a simple, production‑ready environment where the dashboard, API, and background agent loop run continuously. Together, these elements create a practical,           autonomous growth engine capable of analyzing merchant performance, identifying bottlenecks, and generating high‑impact actions in real time.
